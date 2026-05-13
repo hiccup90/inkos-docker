@@ -1,0 +1,132 @@
+name: docker-ghcr
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: Force a rebuild even if upstream HEAD is unchanged
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: docker-ghcr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/inkos-docker
+  UPSTREAM_REPO: https://github.com/Narcooo/inkos.git
+  UPSTREAM_BRANCH: master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine upstream state
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_HEAD=$(git ls-remote "$UPSTREAM_REPO" "refs/heads/$UPSTREAM_BRANCH" | awk '{print $1}')
+          PREVIOUS_HEAD=$(jq -r '.upstream_head // ""' upstream-state.json)
+          SHORT_SHA=${CURRENT_HEAD:0:12}
+          FORCE_BUILD="${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}"
+
+          if [[ "$FORCE_BUILD" == "true" ]]; then
+            SHOULD_BUILD=true
+            REASON=manual
+          elif [[ "$CURRENT_HEAD" != "$PREVIOUS_HEAD" ]]; then
+            SHOULD_BUILD=true
+            REASON=upstream_changed
+          else
+            SHOULD_BUILD=false
+            REASON=no_change
+          fi
+
+          echo "current_head=$CURRENT_HEAD" >> "$GITHUB_OUTPUT"
+          echo "previous_head=$PREVIOUS_HEAD" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+      - name: Skip summary
+        if: steps.upstream.outputs.should_build != 'true'
+        run: |
+          echo "No upstream change detected. Skipping build."
+          echo "Current:  ${{ steps.upstream.outputs.current_head }}"
+          echo "Previous: ${{ steps.upstream.outputs.previous_head }}"
+
+      - name: Set up QEMU
+        if: steps.upstream.outputs.should_build == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.upstream.outputs.should_build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.upstream.outputs.should_build == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        if: steps.upstream.outputs.should_build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            UPSTREAM_REF=${{ steps.upstream.outputs.current_head }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:upstream-${{ steps.upstream.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=inkos-docker
+            org.opencontainers.image.description=Unofficial InkOS Docker image built from upstream source
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.upstream.outputs.current_head }}
+
+      - name: Update tracked upstream state
+        if: steps.upstream.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP=$(mktemp)
+          jq \
+            --arg ref "${{ steps.upstream.outputs.current_head }}" \
+            --arg built "$(date -u +%FT%TZ)" \
+            '.upstream_head=$ref | .last_built_at=$built' \
+            upstream-state.json > "$TMP"
+          mv "$TMP" upstream-state.json
+
+      - name: Commit tracked state
+        if: steps.upstream.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet upstream-state.json; then
+            echo "No state changes to commit"
+            exit 0
+          fi
+          git add upstream-state.json
+          git commit -m "chore: track InkOS upstream ${{ steps.upstream.outputs.short_sha }} [skip ci]"
+          git push
