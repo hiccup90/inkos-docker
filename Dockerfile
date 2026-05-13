@@ -10,7 +10,7 @@ RUN apt-get update \
 RUN git clone https://github.com/Narcooo/inkos.git . \
  && git checkout "$UPSTREAM_REF" \
  && npm i -g pnpm \
- && pnpm install --frozen-lockfile \
+ && pnpm install --no-frozen-lockfile \
  && pnpm -r build \
  && pnpm --filter @actalk/inkos pack --out /tmp/inkos.tgz
 
