@@ -12,14 +12,15 @@ RUN git clone https://github.com/Narcooo/inkos.git . \
  && npm i -g pnpm@9 \
  && pnpm install --no-frozen-lockfile \
  && pnpm -r build \
- && pnpm --filter @actalk/inkos pack --out /tmp/inkos.tgz
+ && cd packages/cli \
+ && npm pack --pack-destination /tmp
 
 FROM node:22-bookworm
 ENV HOME=/config \
     INKOS_PROJECT_ROOT=/data
 
 WORKDIR /app
-COPY --from=builder /tmp/inkos.tgz /tmp/inkos.tgz
+COPY --from=builder /tmp/actalk-inkos-*.tgz /tmp/inkos.tgz
 RUN npm install -g /tmp/inkos.tgz \
  && rm -f /tmp/inkos.tgz \
  && mkdir -p /config /data
