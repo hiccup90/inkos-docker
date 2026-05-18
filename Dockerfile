@@ -26,21 +26,31 @@ WORKDIR /app
 COPY --from=builder /tmp/actalk-inkos-core-*.tgz /tmp/inkos-core.tgz
 COPY --from=builder /tmp/actalk-inkos-studio-*.tgz /tmp/inkos-studio.tgz
 COPY --from=builder /tmp/actalk-inkos-*.tgz /tmp/inkos.tgz
-RUN npm install -g /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
- && root="$(npm root -g)" \
- && cli_pkg="$(find "$root" -path '*/@actalk/inkos/package.json' | head -n1)" \
- && studio_pkg="$(find "$root" -path '*/@actalk/inkos-studio/package.json' | head -n1)" \
- && test -n "$cli_pkg" \
- && test -n "$studio_pkg" \
- && cli_dir="$(dirname "$cli_pkg")" \
- && studio_dir="$(dirname "$studio_pkg")" \
- && test -f "$cli_dir/dist/index.js" \
- && test -f "$studio_dir/dist/api/index.js" \
- && printf '%s\n' '#!/bin/sh' "exec node \"$cli_dir/dist/index.js\" \"\$@\"" > /usr/local/bin/inkos-cli-entry \
- && printf '%s\n' '#!/bin/sh' "exec node \"$studio_dir/dist/api/index.js\" \"\$@\"" > /usr/local/bin/inkos-studio-entry \
- && chmod +x /usr/local/bin/inkos-cli-entry /usr/local/bin/inkos-studio-entry \
- && rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
- && mkdir -p /config /data
+RUN set -eux; \
+ npm install -g /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz; \
+ root="$(npm root -g)"; \
+ echo "npm root -g: $root"; \
+ cli_pkg="$(find "$root" -path '*/@actalk/inkos/package.json' | head -n1)"; \
+ studio_pkg="$(find "$root" -path '*/@actalk/inkos-studio/package.json' | head -n1)"; \
+ echo "cli_pkg: $cli_pkg"; \
+ echo "studio_pkg: $studio_pkg"; \
+ test -n "$cli_pkg"; \
+ test -n "$studio_pkg"; \
+ cli_dir="$(dirname "$cli_pkg")"; \
+ studio_dir="$(dirname "$studio_pkg")"; \
+ test -f "$cli_dir/dist/index.js"; \
+ test -f "$studio_dir/dist/api/index.js"; \
+ cat > /usr/local/bin/inkos-cli-entry <<EOF
+#!/bin/sh
+exec node "$cli_dir/dist/index.js" "$@"
+EOF
+ cat > /usr/local/bin/inkos-studio-entry <<EOF
+#!/bin/sh
+exec node "$studio_dir/dist/api/index.js" "$@"
+EOF
+ chmod +x /usr/local/bin/inkos-cli-entry /usr/local/bin/inkos-studio-entry; \
+ rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz; \
+ mkdir -p /config /data
 
 ENV HOME=/config \
     INKOS_PROJECT_ROOT=/data \
