@@ -36,4 +36,4 @@ ENV HOME=/config \
 
 WORKDIR /data
 EXPOSE 4567
-ENTRYPOINT ["/bin/sh", "-lc", "mkdir -p /config /data && exec inkos studio --port \"${INKOS_STUDIO_PORT:-4567}\""]
+ENTRYPOINT ["/bin/sh", "-lc", "mkdir -p /config /data && exec node \"$(npm root -g)/@actalk/inkos-studio/dist/api/index.js\" \"${INKOS_PROJECT_ROOT:-/data}\""]

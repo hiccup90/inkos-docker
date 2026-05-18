@@ -20,7 +20,7 @@ Unofficial Docker image build for [Narcooo/inkos](https://github.com/Narcooo/ink
 - `HOME=/config`
 - `INKOS_PROJECT_ROOT=/data`
 - Exposes `4567`
-- Starts with `inkos studio --port ${INKOS_STUDIO_PORT:-4567}`
+- Starts with `node "$(npm root -g)/@actalk/inkos-studio/dist/api/index.js" "${INKOS_PROJECT_ROOT:-/data}"`
 
 ## Suggested mounts
 
