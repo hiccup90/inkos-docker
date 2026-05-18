@@ -20,7 +20,7 @@ Unofficial Docker image build for [Narcooo/inkos](https://github.com/Narcooo/ink
 - `HOME=/config`
 - `INKOS_PROJECT_ROOT=/data`
 - Exposes `4567`
-- Starts with `inkos`
+- Starts with `inkos studio --port ${INKOS_STUDIO_PORT:-4567}`
 
 ## Suggested mounts
 

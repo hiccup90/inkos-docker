@@ -23,7 +23,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/inkos-docker
   UPSTREAM_REPO: https://github.com/Narcooo/inkos.git
-  UPSTREAM_BRANCH: master
 
 jobs:
   build:
@@ -40,7 +39,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CURRENT_HEAD=$(git ls-remote "$UPSTREAM_REPO" "refs/heads/$UPSTREAM_BRANCH" | awk '{print $1}')
+          DEFAULT_BRANCH=$(git ls-remote --symref "$UPSTREAM_REPO" HEAD | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')
+          if [[ -z "$DEFAULT_BRANCH" ]]; then
+            echo "Failed to determine upstream default branch" >&2
+            exit 1
+          fi
+          CURRENT_HEAD=$(git ls-remote "$UPSTREAM_REPO" "refs/heads/$DEFAULT_BRANCH" | awk '{print $1}')
+          if [[ -z "$CURRENT_HEAD" ]]; then
+            echo "Failed to determine upstream HEAD for branch $DEFAULT_BRANCH" >&2
+            exit 1
+          fi
           PREVIOUS_HEAD=$(jq -r '.upstream_head // ""' upstream-state.json)
           SHORT_SHA=${CURRENT_HEAD:0:12}
           FORCE_BUILD="${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}"
@@ -56,6 +64,7 @@ jobs:
             REASON=no_change
           fi
 
+          echo "default_branch=$DEFAULT_BRANCH" >> "$GITHUB_OUTPUT"
           echo "current_head=$CURRENT_HEAD" >> "$GITHUB_OUTPUT"
           echo "previous_head=$PREVIOUS_HEAD" >> "$GITHUB_OUTPUT"
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
@@ -76,6 +85,50 @@ jobs:
       - name: Set up Docker Buildx
         if: steps.upstream.outputs.should_build == 'true'
         uses: docker/setup-buildx-action@v3
+
+      - name: Build smoke-test image
+        if: steps.upstream.outputs.should_build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: inkos-docker:smoke
+          build-args: |
+            UPSTREAM_REF=${{ steps.upstream.outputs.current_head }}
+          labels: |
+            org.opencontainers.image.title=inkos-docker
+            org.opencontainers.image.description=Unofficial InkOS Docker image built from upstream source
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.upstream.outputs.current_head }}
+
+      - name: Smoke test container runtime
+        if: steps.upstream.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid=$(docker run -d -p 4567:4567 --rm inkos-docker:smoke)
+          cleanup() {
+            docker logs "$cid" || true
+            docker stop "$cid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4567 >/dev/null; then
+              echo "Smoke test passed"
+              exit 0
+            fi
+            if ! docker ps --format '{{.ID}}' | grep -q "^${cid:0:12}"; then
+              echo "Container exited before becoming ready" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          echo "Smoke test timed out waiting for http://127.0.0.1:4567" >&2
+          exit 1
 
       - name: Log in to GHCR
         if: steps.upstream.outputs.should_build == 'true'
