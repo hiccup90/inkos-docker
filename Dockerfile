@@ -40,14 +40,7 @@ RUN set -eux; \
  studio_dir="$(dirname "$studio_pkg")"; \
  test -f "$cli_dir/dist/index.js"; \
  test -f "$studio_dir/dist/api/index.js"; \
- cat > /usr/local/bin/inkos-cli-entry <<EOF
-#!/bin/sh
-exec node "$cli_dir/dist/index.js" "$@"
-EOF
- cat > /usr/local/bin/inkos-studio-entry <<EOF
-#!/bin/sh
-exec node "$studio_dir/dist/api/index.js" "$@"
-EOF
+ CLI_DIR="$cli_dir" STUDIO_DIR="$studio_dir" node -e 'const fs=require("fs"); fs.writeFileSync("/usr/local/bin/inkos-cli-entry", `#!/bin/sh\nexec node "${process.env.CLI_DIR}/dist/index.js" "$@"\n`); fs.writeFileSync("/usr/local/bin/inkos-studio-entry", `#!/bin/sh\nexec node "${process.env.STUDIO_DIR}/dist/api/index.js" "$@"\n`);'; \
  chmod +x /usr/local/bin/inkos-cli-entry /usr/local/bin/inkos-studio-entry; \
  rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz; \
  mkdir -p /config /data
