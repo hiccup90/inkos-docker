@@ -27,9 +27,7 @@ COPY --from=builder /tmp/actalk-inkos-core-*.tgz /tmp/inkos-core.tgz
 COPY --from=builder /tmp/actalk-inkos-studio-*.tgz /tmp/inkos-studio.tgz
 COPY --from=builder /tmp/actalk-inkos-*.tgz /tmp/inkos.tgz
 COPY docker-entrypoint.mjs /usr/local/bin/inkos-docker-entrypoint.mjs
-RUN npm install -g /tmp/inkos-core.tgz \
- && npm install -g /tmp/inkos-studio.tgz \
- && npm install -g /tmp/inkos.tgz \
+RUN npm install -g /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
  && rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
  && mkdir -p /config /data
 
