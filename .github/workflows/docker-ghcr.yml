@@ -96,11 +96,12 @@ jobs:
           push: false
           tags: inkos-docker:smoke
           build-args: |
-            UPSTREAM_REF=${{ steps.upstream.outputs.current_head }}
+            INKOS_VERSION=1.4.1
           labels: |
             org.opencontainers.image.title=inkos-docker
-            org.opencontainers.image.description=Unofficial InkOS Docker image built from upstream source
+            org.opencontainers.image.description=Unofficial InkOS Docker image built from published npm releases
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=1.4.1
             org.opencontainers.image.revision=${{ steps.upstream.outputs.current_head }}
 
       - name: Smoke test container runtime
@@ -146,14 +147,16 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: |
-            UPSTREAM_REF=${{ steps.upstream.outputs.current_head }}
+            INKOS_VERSION=1.4.1
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:npm-1.4.1
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:upstream-${{ steps.upstream.outputs.short_sha }}
           labels: |
             org.opencontainers.image.title=inkos-docker
-            org.opencontainers.image.description=Unofficial InkOS Docker image built from upstream source
+            org.opencontainers.image.description=Unofficial InkOS Docker image built from published npm releases
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=1.4.1
             org.opencontainers.image.revision=${{ steps.upstream.outputs.current_head }}
 
       - name: Update tracked upstream state

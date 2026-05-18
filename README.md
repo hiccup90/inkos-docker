@@ -4,7 +4,7 @@ Unofficial Docker image build for [Narcooo/inkos](https://github.com/Narcooo/ink
 
 ## What this repo does
 
-- Builds InkOS from upstream source, not just from npm latest
+- Builds InkOS from published upstream npm releases
 - Publishes a ready-to-run Docker image to GHCR
 - Checks upstream `Narcooo/inkos` default branch on a schedule
 - Rebuilds automatically when upstream HEAD changes
@@ -20,8 +20,8 @@ Unofficial Docker image build for [Narcooo/inkos](https://github.com/Narcooo/ink
 - `HOME=/config`
 - `INKOS_PROJECT_ROOT=/data`
 - Exposes `4567`
-- Installs InkOS runtime dependencies under `/opt/inkos-runtime/node_modules`
-- Copies the built CLI dist from the builder stage into `/opt/inkos-cli`
+- Installs published InkOS packages from npm under `/opt/inkos-runtime/node_modules`
+- Defaults to `INKOS_VERSION=1.4.1` at build time
 - Writes wrapper scripts to `/usr/local/bin`
 - If `/data/inkos.json` is missing, runs `/usr/local/bin/inkos-cli-entry init --lang zh` first
 - Then starts `/usr/local/bin/inkos-studio-entry "${INKOS_PROJECT_ROOT:-/data}"`
@@ -33,4 +33,4 @@ Unofficial Docker image build for [Narcooo/inkos](https://github.com/Narcooo/ink
 
 ## Notes
 
-This image is intentionally built from the upstream Git repository so that upstream commits can trigger a rebuild even before npm package publication cadence catches up.
+This image tracks upstream changes on a schedule, but the container itself is built from published npm release artifacts so runtime package contents match the released distribution.
