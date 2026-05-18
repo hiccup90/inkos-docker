@@ -12,7 +12,11 @@ RUN git clone https://github.com/Narcooo/inkos.git . \
  && npm i -g pnpm@9 \
  && pnpm install --no-frozen-lockfile \
  && pnpm -r build \
- && cd packages/cli \
+ && cd packages/core \
+ && npm pack --pack-destination /tmp \
+ && cd ../studio \
+ && npm pack --pack-destination /tmp \
+ && cd ../cli \
  && npm pack --pack-destination /tmp
 
 FROM node:22-bookworm
@@ -20,9 +24,13 @@ ENV HOME=/config \
     INKOS_PROJECT_ROOT=/data
 
 WORKDIR /app
+COPY --from=builder /tmp/actalk-inkos-core-*.tgz /tmp/inkos-core.tgz
+COPY --from=builder /tmp/actalk-inkos-studio-*.tgz /tmp/inkos-studio.tgz
 COPY --from=builder /tmp/actalk-inkos-*.tgz /tmp/inkos.tgz
-RUN npm install -g /tmp/inkos.tgz \
- && rm -f /tmp/inkos.tgz \
+RUN npm install -g /tmp/inkos-core.tgz \
+ && npm install -g /tmp/inkos-studio.tgz \
+ && npm install -g /tmp/inkos.tgz \
+ && rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
  && mkdir -p /config /data
 
 WORKDIR /data
