@@ -20,8 +20,7 @@ RUN git clone https://github.com/Narcooo/inkos.git . \
  && npm pack --pack-destination /tmp
 
 FROM node:22-bookworm
-ENV HOME=/config \
-    INKOS_PROJECT_ROOT=/data
+ENV PATH=/usr/local/bin:$PATH
 
 WORKDIR /app
 COPY --from=builder /tmp/actalk-inkos-core-*.tgz /tmp/inkos-core.tgz
@@ -33,6 +32,9 @@ RUN npm install -g /tmp/inkos-core.tgz \
  && rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
  && mkdir -p /config /data
 
+ENV HOME=/config \
+    INKOS_PROJECT_ROOT=/data
+
 WORKDIR /data
 EXPOSE 4567
-ENTRYPOINT ["/bin/bash", "-lc", "mkdir -p /config /data && exec inkos"]
+ENTRYPOINT ["/bin/bash", "-lc", "mkdir -p /config /data && command -v inkos >/dev/null && exec inkos"]
