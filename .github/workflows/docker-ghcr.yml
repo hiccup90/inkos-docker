@@ -49,13 +49,22 @@ jobs:
             echo "Failed to determine upstream HEAD for branch $DEFAULT_BRANCH" >&2
             exit 1
           fi
+          CURRENT_NPM_VERSION=$(npm view @actalk/inkos dist-tags.latest)
+          if [[ -z "$CURRENT_NPM_VERSION" ]]; then
+            echo "Failed to determine npm dist-tags.latest for @actalk/inkos" >&2
+            exit 1
+          fi
           PREVIOUS_HEAD=$(jq -r '.upstream_head // ""' upstream-state.json)
+          PREVIOUS_NPM_VERSION=$(jq -r '.npm_version // ""' upstream-state.json)
           SHORT_SHA=${CURRENT_HEAD:0:12}
           FORCE_BUILD="${{ github.event_name == 'workflow_dispatch' && inputs.force_build || false }}"
 
           if [[ "$FORCE_BUILD" == "true" ]]; then
             SHOULD_BUILD=true
             REASON=manual
+          elif [[ "$CURRENT_NPM_VERSION" != "$PREVIOUS_NPM_VERSION" ]]; then
+            SHOULD_BUILD=true
+            REASON=npm_release_changed
           elif [[ "$CURRENT_HEAD" != "$PREVIOUS_HEAD" ]]; then
             SHOULD_BUILD=true
             REASON=upstream_changed
@@ -67,6 +76,8 @@ jobs:
           echo "default_branch=$DEFAULT_BRANCH" >> "$GITHUB_OUTPUT"
           echo "current_head=$CURRENT_HEAD" >> "$GITHUB_OUTPUT"
           echo "previous_head=$PREVIOUS_HEAD" >> "$GITHUB_OUTPUT"
+          echo "inkos_version=$CURRENT_NPM_VERSION" >> "$GITHUB_OUTPUT"
+          echo "previous_inkos_version=$PREVIOUS_NPM_VERSION" >> "$GITHUB_OUTPUT"
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
           echo "reason=$REASON" >> "$GITHUB_OUTPUT"
@@ -74,9 +85,11 @@ jobs:
       - name: Skip summary
         if: steps.upstream.outputs.should_build != 'true'
         run: |
-          echo "No upstream change detected. Skipping build."
-          echo "Current:  ${{ steps.upstream.outputs.current_head }}"
-          echo "Previous: ${{ steps.upstream.outputs.previous_head }}"
+          echo "No upstream or npm release change detected. Skipping build."
+          echo "Current HEAD:        ${{ steps.upstream.outputs.current_head }}"
+          echo "Previous HEAD:       ${{ steps.upstream.outputs.previous_head }}"
+          echo "Current npm latest:  ${{ steps.upstream.outputs.inkos_version }}"
+          echo "Previous npm latest: ${{ steps.upstream.outputs.previous_inkos_version }}"
 
       - name: Set up QEMU
         if: steps.upstream.outputs.should_build == 'true'
@@ -96,12 +109,12 @@ jobs:
           push: false
           tags: inkos-docker:smoke
           build-args: |
-            INKOS_VERSION=1.4.1
+            INKOS_VERSION=${{ steps.upstream.outputs.inkos_version }}
           labels: |
             org.opencontainers.image.title=inkos-docker
             org.opencontainers.image.description=Unofficial InkOS Docker image built from published npm releases
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=1.4.1
+            org.opencontainers.image.version=${{ steps.upstream.outputs.inkos_version }}
             org.opencontainers.image.revision=${{ steps.upstream.outputs.current_head }}
 
       - name: Smoke test container runtime
@@ -147,16 +160,16 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: |
-            INKOS_VERSION=1.4.1
+            INKOS_VERSION=${{ steps.upstream.outputs.inkos_version }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:npm-1.4.1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:npm-${{ steps.upstream.outputs.inkos_version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:upstream-${{ steps.upstream.outputs.short_sha }}
           labels: |
             org.opencontainers.image.title=inkos-docker
             org.opencontainers.image.description=Unofficial InkOS Docker image built from published npm releases
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=1.4.1
+            org.opencontainers.image.version=${{ steps.upstream.outputs.inkos_version }}
             org.opencontainers.image.revision=${{ steps.upstream.outputs.current_head }}
 
       - name: Update tracked upstream state
@@ -167,8 +180,9 @@ jobs:
           TMP=$(mktemp)
           jq \
             --arg ref "${{ steps.upstream.outputs.current_head }}" \
+            --arg npm_version "${{ steps.upstream.outputs.inkos_version }}" \
             --arg built "$(date -u +%FT%TZ)" \
-            '.upstream_head=$ref | .last_built_at=$built' \
+            '.upstream_head=$ref | .npm_version=$npm_version | .last_built_at=$built' \
             upstream-state.json > "$TMP"
           mv "$TMP" upstream-state.json
 
@@ -184,5 +198,5 @@ jobs:
             exit 0
           fi
           git add upstream-state.json
-          git commit -m "chore: track InkOS upstream ${{ steps.upstream.outputs.short_sha }} [skip ci]"
+          git commit -m "chore: track InkOS upstream ${{ steps.upstream.outputs.short_sha }} npm ${{ steps.upstream.outputs.inkos_version }} [skip ci]"
           git push
