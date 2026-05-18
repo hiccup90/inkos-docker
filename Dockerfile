@@ -22,25 +22,16 @@ RUN git clone https://github.com/Narcooo/inkos.git . \
 FROM node:22-bookworm
 ENV PATH=/usr/local/bin:$PATH
 
-WORKDIR /app
+WORKDIR /opt/inkos-runtime
 COPY --from=builder /tmp/actalk-inkos-core-*.tgz /tmp/inkos-core.tgz
 COPY --from=builder /tmp/actalk-inkos-studio-*.tgz /tmp/inkos-studio.tgz
 COPY --from=builder /tmp/actalk-inkos-*.tgz /tmp/inkos.tgz
 RUN set -eux; \
- npm install -g /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz; \
- root="$(npm root -g)"; \
- echo "npm root -g: $root"; \
- cli_pkg="$(find "$root" \( -path '*/@actalk/inkos/package.json' -o -path '*/inkos/package.json' \) | head -n1)"; \
- studio_pkg="$(find "$root" -path '*/@actalk/inkos-studio/package.json' | head -n1)"; \
- echo "cli_pkg: $cli_pkg"; \
- echo "studio_pkg: $studio_pkg"; \
- test -n "$cli_pkg"; \
- test -n "$studio_pkg"; \
- cli_dir="$(dirname "$cli_pkg")"; \
- studio_dir="$(dirname "$studio_pkg")"; \
- test -f "$cli_dir/dist/index.js"; \
- test -f "$studio_dir/dist/api/index.js"; \
- CLI_DIR="$cli_dir" STUDIO_DIR="$studio_dir" node -e 'const fs=require("fs"); fs.writeFileSync("/usr/local/bin/inkos-cli-entry", `#!/bin/sh\nexec node "${process.env.CLI_DIR}/dist/index.js" "$@"\n`); fs.writeFileSync("/usr/local/bin/inkos-studio-entry", `#!/bin/sh\nexec node "${process.env.STUDIO_DIR}/dist/api/index.js" "$@"\n`);'; \
+ npm init -y; \
+ npm install /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz; \
+ test -f /opt/inkos-runtime/node_modules/@actalk/inkos/dist/index.js; \
+ test -f /opt/inkos-runtime/node_modules/@actalk/inkos-studio/dist/api/index.js; \
+ node -e 'const fs=require("fs"); fs.writeFileSync("/usr/local/bin/inkos-cli-entry", "#!/bin/sh\nexec node /opt/inkos-runtime/node_modules/@actalk/inkos/dist/index.js \"$@\"\n"); fs.writeFileSync("/usr/local/bin/inkos-studio-entry", "#!/bin/sh\nexec node /opt/inkos-runtime/node_modules/@actalk/inkos-studio/dist/api/index.js \"$@\"\n");'; \
  chmod +x /usr/local/bin/inkos-cli-entry /usr/local/bin/inkos-studio-entry; \
  rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz; \
  mkdir -p /config /data
