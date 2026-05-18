@@ -36,4 +36,4 @@ ENV HOME=/config \
 
 WORKDIR /data
 EXPOSE 4567
-ENTRYPOINT ["/bin/sh", "-lc", "mkdir -p /config /data && cd \"${INKOS_PROJECT_ROOT:-/data}\" && if [ ! -f inkos.json ]; then inkos init --lang zh; fi && exec node \"$(npm root -g)/@actalk/inkos-studio/dist/api/index.js\" \"${INKOS_PROJECT_ROOT:-/data}\""]
+ENTRYPOINT ["/bin/sh", "-lc", "mkdir -p /config /data && cd \"${INKOS_PROJECT_ROOT:-/data}\" && if [ ! -f inkos.json ]; then node \"$(npm root -g)/@actalk/inkos/dist/index.js\" init --lang zh; fi && exec node \"$(npm root -g)/@actalk/inkos-studio/dist/api/index.js\" \"${INKOS_PROJECT_ROOT:-/data}\""]
