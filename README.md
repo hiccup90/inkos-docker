@@ -20,8 +20,8 @@ Unofficial Docker image build for [Narcooo/inkos](https://github.com/Narcooo/ink
 - `HOME=/config`
 - `INKOS_PROJECT_ROOT=/data`
 - Exposes `4567`
-- If `/data/inkos.json` is missing, runs `node "$(npm root -g)/@actalk/inkos/dist/index.js" init --lang zh` first
-- Then starts `node "$(npm root -g)/@actalk/inkos-studio/dist/api/index.js" "${INKOS_PROJECT_ROOT:-/data}"`
+- If `/data/inkos.json` is missing, runs `/usr/local/bin/inkos-cli-entry init --lang zh` first
+- Then starts `/usr/local/bin/inkos-studio-entry "${INKOS_PROJECT_ROOT:-/data}"`
 
 ## Suggested mounts
 

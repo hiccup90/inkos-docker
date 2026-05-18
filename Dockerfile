@@ -27,6 +27,18 @@ COPY --from=builder /tmp/actalk-inkos-core-*.tgz /tmp/inkos-core.tgz
 COPY --from=builder /tmp/actalk-inkos-studio-*.tgz /tmp/inkos-studio.tgz
 COPY --from=builder /tmp/actalk-inkos-*.tgz /tmp/inkos.tgz
 RUN npm install -g /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
+ && root="$(npm root -g)" \
+ && cli_pkg="$(find "$root" -path '*/@actalk/inkos/package.json' | head -n1)" \
+ && studio_pkg="$(find "$root" -path '*/@actalk/inkos-studio/package.json' | head -n1)" \
+ && test -n "$cli_pkg" \
+ && test -n "$studio_pkg" \
+ && cli_dir="$(dirname "$cli_pkg")" \
+ && studio_dir="$(dirname "$studio_pkg")" \
+ && test -f "$cli_dir/dist/index.js" \
+ && test -f "$studio_dir/dist/api/index.js" \
+ && printf '%s\n' '#!/bin/sh' "exec node \"$cli_dir/dist/index.js\" \"\$@\"" > /usr/local/bin/inkos-cli-entry \
+ && printf '%s\n' '#!/bin/sh' "exec node \"$studio_dir/dist/api/index.js\" \"\$@\"" > /usr/local/bin/inkos-studio-entry \
+ && chmod +x /usr/local/bin/inkos-cli-entry /usr/local/bin/inkos-studio-entry \
  && rm -f /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz \
  && mkdir -p /config /data
 
@@ -36,4 +48,4 @@ ENV HOME=/config \
 
 WORKDIR /data
 EXPOSE 4567
-ENTRYPOINT ["/bin/sh", "-lc", "mkdir -p /config /data && cd \"${INKOS_PROJECT_ROOT:-/data}\" && if [ ! -f inkos.json ]; then node \"$(npm root -g)/@actalk/inkos/dist/index.js\" init --lang zh; fi && exec node \"$(npm root -g)/@actalk/inkos-studio/dist/api/index.js\" \"${INKOS_PROJECT_ROOT:-/data}\""]
+ENTRYPOINT ["/bin/sh", "-lc", "mkdir -p /config /data && cd \"${INKOS_PROJECT_ROOT:-/data}\" && if [ ! -f inkos.json ]; then /usr/local/bin/inkos-cli-entry init --lang zh; fi && exec /usr/local/bin/inkos-studio-entry \"${INKOS_PROJECT_ROOT:-/data}\""]
