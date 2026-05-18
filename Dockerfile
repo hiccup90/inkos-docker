@@ -30,7 +30,7 @@ RUN set -eux; \
  npm install -g /tmp/inkos-core.tgz /tmp/inkos-studio.tgz /tmp/inkos.tgz; \
  root="$(npm root -g)"; \
  echo "npm root -g: $root"; \
- cli_pkg="$(find "$root" -path '*/@actalk/inkos/package.json' | head -n1)"; \
+ cli_pkg="$(find "$root" \( -path '*/@actalk/inkos/package.json' -o -path '*/inkos/package.json' \) | head -n1)"; \
  studio_pkg="$(find "$root" -path '*/@actalk/inkos-studio/package.json' | head -n1)"; \
  echo "cli_pkg: $cli_pkg"; \
  echo "studio_pkg: $studio_pkg"; \
