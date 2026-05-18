@@ -20,8 +20,9 @@ Unofficial Docker image build for [Narcooo/inkos](https://github.com/Narcooo/ink
 - `HOME=/config`
 - `INKOS_PROJECT_ROOT=/data`
 - Exposes `4567`
-- Installs InkOS runtime packages under `/opt/inkos-runtime/node_modules`
-- Resolves the actual installed CLI/Studio package paths during image build and writes wrapper scripts to `/usr/local/bin`
+- Installs InkOS runtime dependencies under `/opt/inkos-runtime/node_modules`
+- Copies the built CLI dist from the builder stage into `/opt/inkos-cli`
+- Writes wrapper scripts to `/usr/local/bin`
 - If `/data/inkos.json` is missing, runs `/usr/local/bin/inkos-cli-entry init --lang zh` first
 - Then starts `/usr/local/bin/inkos-studio-entry "${INKOS_PROJECT_ROOT:-/data}"`
 
