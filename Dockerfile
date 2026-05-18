@@ -26,6 +26,7 @@ WORKDIR /app
 COPY --from=builder /tmp/actalk-inkos-core-*.tgz /tmp/inkos-core.tgz
 COPY --from=builder /tmp/actalk-inkos-studio-*.tgz /tmp/inkos-studio.tgz
 COPY --from=builder /tmp/actalk-inkos-*.tgz /tmp/inkos.tgz
+COPY docker-entrypoint.mjs /usr/local/bin/inkos-docker-entrypoint.mjs
 RUN npm install -g /tmp/inkos-core.tgz \
  && npm install -g /tmp/inkos-studio.tgz \
  && npm install -g /tmp/inkos.tgz \
@@ -33,8 +34,9 @@ RUN npm install -g /tmp/inkos-core.tgz \
  && mkdir -p /config /data
 
 ENV HOME=/config \
-    INKOS_PROJECT_ROOT=/data
+    INKOS_PROJECT_ROOT=/data \
+    INKOS_STUDIO_PORT=4567
 
 WORKDIR /data
 EXPOSE 4567
-ENTRYPOINT ["/bin/bash", "-lc", "mkdir -p /config /data && command -v inkos >/dev/null && exec inkos"]
+ENTRYPOINT ["node", "/usr/local/bin/inkos-docker-entrypoint.mjs"]
